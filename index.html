@@ -1,5 +1,13 @@
 <title>Gymnasiearbete</title>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gymnasiearbete">
+<meta name="theme-color" content="#08090C">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%2308090C' width='100' height='100' rx='20'/><text y='70' x='50' text-anchor='middle' font-size='55'>🚗</text></svg>">
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22Gymnasiearbete%22%2C%22short_name%22%3A%22GA%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%2308090C%22%2C%22theme_color%22%3A%22%2308090C%22%2C%22description%22%3A%22Gymnasiearbete%20analysverktyg%22%7D">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;600&display=swap">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -95,6 +103,13 @@ body {
   font-family: var(--font-body);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  overflow-x: hidden;
 }
 
 /* ─── NAV ─── */
@@ -1163,26 +1178,90 @@ h3 {
 }
 
 /* ─── RESPONSIVE ─── */
+
+/* Tablet */
 @media (max-width: 768px) {
   .two-col { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .problems-grid { grid-template-columns: 1fr; }
   .project-detail-grid { grid-template-columns: 1fr; }
-  .nav-inner { gap: 1rem; }
+  .nav-inner { gap: 0.5rem; }
   .page-section { padding: 1.5rem 1rem 3rem; }
-  nav { padding: 0 1rem; }
+  nav { padding: 0 0.75rem; }
   .phase-node { padding-left: 56px; }
   .roadmap-line { left: 20px; }
   .phase-dot { left: 10px; }
+  .nav-logo { font-size: 0.9rem; }
+  .nav-links { flex: 1; min-width: 0; }
+  .modal { width: 95vw; max-width: none; margin: 1rem; padding: 1.25rem; }
+  .dash-savings-number { font-size: 2rem; }
+  .dash-savings-breakdown { flex-direction: column; gap: 0.5rem; }
+  .auth-dropdown { right: -0.5rem; min-width: 220px; }
 }
 
+/* Mobile */
 @media (max-width: 480px) {
-  .stats-grid { grid-template-columns: 1fr; }
-  .nav-links { gap: 0; }
-  .nav-link { padding: 0.35rem 0.5rem; font-size: 0.75rem; }
+  .nav-inner { flex-wrap: wrap; height: auto; padding: 0.5rem 0; gap: 0.25rem; }
+  .nav-logo { width: auto; }
+  .nav-links { order: 3; width: 100%; gap: 0; overflow-x: auto; padding-bottom: 0.25rem; }
+  .nav-link { padding: 0.3rem 0.5rem; font-size: 0.72rem; }
+  .auth-area { order: 2; }
   .auth-name { display: none; }
   .sync-badge { display: none; }
   .auth-btn { font-size: 0.7rem; padding: 0.3rem 0.5rem; }
+  .auth-dropdown { right: -0.5rem; min-width: 200px; }
+
+  .page-section { padding: 1rem 0.75rem 2.5rem; }
+  .section-label { font-size: 0.65rem; }
+  h1 { font-size: 1.5rem; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .dash-stat-card { padding: 0.75rem; }
+  .dash-stat-value { font-size: 1.3rem; }
+  .dash-stat-icon { font-size: 0.9rem; }
+  .dash-hero { padding: 1rem; border-radius: 14px; }
+  .dash-hero-top { flex-direction: column; gap: 0.5rem; }
+  .dash-savings-hero { padding: 1rem; border-radius: 14px; }
+  .dash-savings-number { font-size: 1.8rem; }
+  .dash-savings-currency { font-size: 0.85rem; }
+
+  .btn { font-size: 0.78rem; padding: 0.45rem 0.9rem; }
+  .btn-accent { padding: 0.5rem 1rem; }
+  .problem-card, .project-card, .doc-card { padding: 0.75rem; }
+
+  .modal { width: 100vw; max-width: none; margin: 0; padding: 1rem; border-radius: 12px 12px 0 0; }
+  .modal-overlay { align-items: flex-end; }
+
+  .two-col { gap: 0.75rem; }
+  .dash-check-item { font-size: 0.8rem; }
+}
+
+/* Small phones */
+@media (max-width: 360px) {
+  .nav-logo { font-size: 0.75rem; letter-spacing: -0.03em; }
+  .nav-link { font-size: 0.65rem; padding: 0.25rem 0.35rem; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .dash-stat-value { font-size: 1.1rem; }
+  h1 { font-size: 1.25rem; }
+}
+
+/* Touch device improvements */
+@media (hover: none) and (pointer: coarse) {
+  .nav-link { padding: 0.5rem 0.75rem; min-height: 44px; display: flex; align-items: center; }
+  .btn { min-height: 44px; }
+  .auth-btn { min-height: 44px; }
+  .dash-check-item { min-height: 44px; padding: 0.4rem 0; }
+  .problem-card button, .project-card button { min-height: 44px; }
+}
+
+/* PWA standalone mode */
+@media (display-mode: standalone) {
+  nav { padding-top: 0.25rem; }
+}
+
+/* Landscape phone */
+@media (max-height: 500px) and (orientation: landscape) {
+  .dash-hero canvas { height: 120px; }
+  .page-section { padding: 0.75rem 1rem 2rem; }
 }
 </style>
 
