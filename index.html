@@ -1,5 +1,9 @@
 <title>Gymnasiearbete</title>
+<meta charset="UTF-8">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;600&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
 :root {
@@ -153,6 +157,43 @@ nav {
 }
 .nav-link:hover { color: var(--text); background: var(--accent-soft); }
 .nav-link.active { color: var(--accent); background: var(--accent-soft); }
+
+.auth-area { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; flex-shrink: 0; }
+.auth-btn {
+  display: flex; align-items: center; gap: 0.4rem;
+  background: var(--accent); color: #000; border: none; border-radius: 8px;
+  padding: 0.35rem 0.8rem; font-size: 0.78rem; font-weight: 600;
+  font-family: var(--font-body); cursor: pointer; transition: opacity 0.15s;
+}
+.auth-btn:hover { opacity: 0.85; }
+.auth-btn.sign-out { background: var(--card-hover); color: var(--text-secondary); }
+.auth-avatar {
+  width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--accent);
+  object-fit: cover;
+}
+.auth-name { font-size: 0.75rem; color: var(--text-secondary); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sync-badge {
+  font-size: 0.6rem; padding: 0.15rem 0.4rem; border-radius: 4px;
+  background: rgba(120,203,32,0.15); color: var(--accent); font-weight: 600;
+}
+.auth-dropdown {
+  position: absolute; top: 100%; right: 0; margin-top: 0.5rem;
+  background: var(--card); border: 1px solid var(--border-light); border-radius: 12px;
+  padding: 1.2rem; min-width: 240px; z-index: 100;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  display: none;
+}
+.auth-dropdown.open { display: block; }
+.auth-dropdown label { display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem; margin-top: 0.6rem; }
+.auth-dropdown label:first-child { margin-top: 0; }
+.auth-dropdown input {
+  width: 100%; padding: 0.45rem 0.6rem; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-size: 0.85rem;
+  font-family: var(--font-body); outline: none;
+}
+.auth-dropdown input:focus { border-color: var(--accent); }
+.auth-dropdown .auth-btn { width: 100%; justify-content: center; margin-top: 0.8rem; }
+.auth-error { color: #FF6B6B; font-size: 0.72rem; margin-top: 0.4rem; display: none; }
 
 /* ─── SECTIONS ─── */
 .page-section {
@@ -1139,6 +1180,9 @@ h3 {
   .stats-grid { grid-template-columns: 1fr; }
   .nav-links { gap: 0; }
   .nav-link { padding: 0.35rem 0.5rem; font-size: 0.75rem; }
+  .auth-name { display: none; }
+  .sync-badge { display: none; }
+  .auth-btn { font-size: 0.7rem; padding: 0.3rem 0.5rem; }
 }
 </style>
 
@@ -1154,6 +1198,17 @@ h3 {
       <a class="nav-link" data-page="costs" onclick="navigate('costs')">Kostnadsanalys</a>
       <a class="nav-link" data-page="thesis" onclick="navigate('thesis')">Gymnasiearbete</a>
       <a class="nav-link" data-page="docs" onclick="navigate('docs')">Dokumentation</a>
+    </div>
+    <div class="auth-area" id="auth-area" style="position:relative">
+      <button class="auth-btn" id="auth-btn" onclick="toggleAuthDropdown()">Logga in</button>
+      <div class="auth-dropdown" id="auth-dropdown">
+        <label>Namn</label>
+        <input type="text" id="auth-name" placeholder="T.ex. Artush">
+        <label>Kod</label>
+        <input type="password" id="auth-code" placeholder="Din kod">
+        <div class="auth-error" id="auth-error"></div>
+        <button class="auth-btn" onclick="handleLogin()">Logga in</button>
+      </div>
     </div>
   </div>
 </nav>
@@ -1510,6 +1565,153 @@ h3 {
 
 
 <script>
+// ─── FIREBASE ───
+const firebaseConfig = {
+  apiKey: "AIzaSyA9me7THEtWegX1CV4ENrYNJ2uszQh7V58",
+  authDomain: "gymnasiearbete-e9378.firebaseapp.com",
+  projectId: "gymnasiearbete-e9378",
+  storageBucket: "gymnasiearbete-e9378.firebasestorage.app",
+  messagingSenderId: "932555428098",
+  appId: "1:932555428098:web:1634c8d7b70ee31998f21b"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+let currentUser = null;
+let firestoreReady = false;
+
+function toggleAuthDropdown() {
+  document.getElementById('auth-dropdown').classList.toggle('open');
+}
+
+async function handleLogin() {
+  const nameInput = document.getElementById('auth-name');
+  const codeInput = document.getElementById('auth-code');
+  const errorEl = document.getElementById('auth-error');
+  const name = nameInput.value.trim();
+  const code = codeInput.value;
+  if (!name || !code) { errorEl.textContent = 'Fyll i namn och kod'; errorEl.style.display = 'block'; return; }
+  errorEl.style.display = 'none';
+  const email = name.toLowerCase().replace(/[^a-z0-9]/g, '') + '@gymnasiearbete.app';
+  try {
+    await auth.signInWithEmailAndPassword(email, code);
+  } catch(e) {
+    if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
+      try {
+        const cred = await auth.createUserWithEmailAndPassword(email, code);
+        await cred.user.updateProfile({ displayName: name });
+      } catch(e2) {
+        errorEl.textContent = e2.code === 'auth/weak-password' ? 'Koden måste vara minst 6 tecken' : 'Fel: ' + e2.message;
+        errorEl.style.display = 'block';
+        return;
+      }
+    } else if (e.code === 'auth/wrong-password') {
+      errorEl.textContent = 'Fel kod'; errorEl.style.display = 'block'; return;
+    } else {
+      errorEl.textContent = 'Fel: ' + e.message; errorEl.style.display = 'block'; return;
+    }
+  }
+  document.getElementById('auth-dropdown').classList.remove('open');
+}
+
+function handleAuth() {
+  if (currentUser) {
+    auth.signOut();
+  }
+}
+
+function updateAuthUI(user) {
+  const btn = document.getElementById('auth-btn');
+  const dropdown = document.getElementById('auth-dropdown');
+  if (user) {
+    const name = user.displayName || user.email.split('@')[0];
+    btn.textContent = name;
+    btn.onclick = null;
+    const area = document.getElementById('auth-area');
+    area.innerHTML = `
+      <span class="auth-name">${name}</span>
+      <span class="sync-badge">Synkad</span>
+      <button class="auth-btn sign-out" onclick="handleAuth()">Logga ut</button>
+    `;
+  } else {
+    const area = document.getElementById('auth-area');
+    area.innerHTML = `
+      <button class="auth-btn" onclick="toggleAuthDropdown()">Logga in</button>
+      <div class="auth-dropdown" id="auth-dropdown">
+        <label>Namn</label>
+        <input type="text" id="auth-name" placeholder="T.ex. Artush">
+        <label>Kod</label>
+        <input type="password" id="auth-code" placeholder="Din kod">
+        <div class="auth-error" id="auth-error"></div>
+        <button class="auth-btn" onclick="handleLogin()">Logga in</button>
+      </div>
+    `;
+  }
+}
+
+async function loadFromFirestore() {
+  if (!currentUser) return false;
+  try {
+    const doc = await db.collection('users').doc(currentUser.uid).get();
+    if (doc.exists) {
+      const data = doc.data();
+      if (data.state) {
+        state = JSON.parse(data.state);
+        initState();
+        save();
+        renderCurrentPage();
+        return true;
+      }
+    }
+  } catch(e) { console.error('Firestore load error:', e); }
+  return false;
+}
+
+async function saveToFirestore() {
+  if (!currentUser || !firestoreReady) return;
+  try {
+    await db.collection('users').doc(currentUser.uid).set({
+      state: JSON.stringify(state),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      email: currentUser.email || '',
+      name: currentUser.displayName || ''
+    });
+  } catch(e) { console.error('Firestore save error:', e); }
+}
+
+let saveTimer = null;
+function debouncedCloudSave() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToFirestore, 2000);
+}
+
+auth.onAuthStateChanged(async (user) => {
+  currentUser = user;
+  updateAuthUI(user);
+  if (user) {
+    firestoreReady = true;
+    const loaded = await loadFromFirestore();
+    if (!loaded) {
+      saveToFirestore();
+    }
+  } else {
+    firestoreReady = false;
+  }
+});
+
+function renderCurrentPage() {
+  const active = document.querySelector('.nav-link.active');
+  if (active) {
+    const page = active.getAttribute('data-page');
+    if (page === 'dashboard') renderDashboard();
+    else if (page === 'roadmap') renderRoadmap();
+    else if (page === 'problems') renderProblems();
+    else if (page === 'projects') renderProjects();
+    else if (page === 'thesis') renderThesis();
+    else if (page === 'docs') renderDocs();
+  }
+}
+
 // ─── DATA ───
 const PHASES = [
   {
@@ -1692,23 +1894,28 @@ try {
 } catch(e) {
   state = {};
 }
-if (!state.phases) state.phases = PHASES.map(p => ({ id: p.id, status: 'not-started', tasksDone: [], notes: '' }));
-if (state.phases.length !== PHASES.length) {
-  const old = state.phases;
-  state.phases = PHASES.map(p => {
-    const prev = old.find(o => o.id === p.id);
-    return prev || { id: p.id, status: 'not-started', tasksDone: [], notes: '' };
-  });
+
+function initState() {
+  if (!state.phases) state.phases = PHASES.map(p => ({ id: p.id, status: 'not-started', tasksDone: [], notes: '' }));
+  if (state.phases.length !== PHASES.length) {
+    const old = state.phases;
+    state.phases = PHASES.map(p => {
+      const prev = old.find(o => o.id === p.id);
+      return prev || { id: p.id, status: 'not-started', tasksDone: [], notes: '' };
+    });
+  }
+  syncPhaseStatuses();
+  if (!state.problems) state.problems = [];
+  state.problems.forEach(p => { if (typeof p.solved === 'undefined') p.solved = false; });
+  if (!state.projects) state.projects = [];
+  if (!state.docs) state.docs = [];
+  if (!state.thesis) state.thesis = THESIS_SECTIONS.map(s => ({ id: s.id, content: '' }));
 }
-syncPhaseStatuses();
-if (!state.problems) state.problems = [];
-state.problems.forEach(p => { if (typeof p.solved === 'undefined') p.solved = false; });
-if (!state.projects) state.projects = [];
-if (!state.docs) state.docs = [];
-if (!state.thesis) state.thesis = THESIS_SECTIONS.map(s => ({ id: s.id, content: '' }));
+initState();
 
 function save() {
   try { localStorage.setItem('ga-state', JSON.stringify(state)); } catch(e) {}
+  debouncedCloudSave();
 }
 
 // ─── NAVIGATION ───
@@ -2965,5 +3172,10 @@ function removeDoc(i) {
 }
 
 // ─── INIT ───
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('auth-dropdown');
+  const area = document.getElementById('auth-area');
+  if (dd && !area.contains(e.target)) dd.classList.remove('open');
+});
 renderDashboard();
 </script>
