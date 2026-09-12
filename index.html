@@ -1764,6 +1764,21 @@ function debouncedCloudSave() {
   saveTimer = setTimeout(saveToFirestore, 2000);
 }
 
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    saveToFirestore();
+  }
+});
+window.addEventListener('pagehide', () => {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    saveToFirestore();
+  }
+});
+
 auth.onAuthStateChanged(async (user) => {
   currentUser = user;
   updateAuthUI(user);
