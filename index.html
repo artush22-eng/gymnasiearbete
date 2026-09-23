@@ -1779,6 +1779,21 @@ window.addEventListener('pagehide', () => {
   }
 });
 
+let unsubscribeSnapshot = null;
+function startRealtimeSync() {
+  if (unsubscribeSnapshot) unsubscribeSnapshot();
+  unsubscribeSnapshot = db.collection('users').doc(currentUser.uid).onSnapshot((doc) => {
+    if (doc.metadata.hasPendingWrites) return;
+    if (!doc.exists) return;
+    const data = doc.data();
+    if (!data.state || data.state === JSON.stringify(state)) return;
+    state = JSON.parse(data.state);
+    initState();
+    try { localStorage.setItem('ga-state', JSON.stringify(state)); } catch(e) {}
+    renderCurrentPage();
+  }, (e) => console.error('Firestore sync error:', e));
+}
+
 auth.onAuthStateChanged(async (user) => {
   currentUser = user;
   updateAuthUI(user);
@@ -1788,8 +1803,10 @@ auth.onAuthStateChanged(async (user) => {
     if (!loaded) {
       saveToFirestore();
     }
+    startRealtimeSync();
   } else {
     firestoreReady = false;
+    if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
   }
 });
 
