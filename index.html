@@ -1728,6 +1728,38 @@ function updateAuthUI(user) {
   }
 }
 
+function mergeStates(local, cloud) {
+  const merged = JSON.parse(JSON.stringify(cloud));
+  ['problems', 'projects', 'docs'].forEach(k => {
+    const list = merged[k] || [];
+    const key = o => JSON.stringify([o.name || '', o.what || '', o.date || '']);
+    const seen = new Set(list.map(key));
+    (local[k] || []).forEach(o => { if (!seen.has(key(o))) { list.push(o); seen.add(key(o)); } });
+    merged[k] = list;
+  });
+  if (local.thesis) {
+    merged.thesis = merged.thesis || [];
+    local.thesis.forEach(lt => {
+      const mt = merged.thesis.find(t => t.id === lt.id);
+      if (!mt) merged.thesis.push(lt);
+      else if ((lt.content || '').length > (mt.content || '').length) mt.content = lt.content;
+    });
+  }
+  if (local.phases) {
+    merged.phases = merged.phases || [];
+    local.phases.forEach(lp => {
+      const mp = merged.phases.find(p => p.id === lp.id);
+      if (!mp) merged.phases.push(lp);
+      else {
+        mp.tasksDone = mp.tasksDone || [];
+        (lp.tasksDone || []).forEach(t => { if (!mp.tasksDone.includes(t)) mp.tasksDone.push(t); });
+        if ((lp.notes || '').length > (mp.notes || '').length) mp.notes = lp.notes;
+      }
+    });
+  }
+  return merged;
+}
+
 async function loadFromFirestore() {
   if (!currentUser) return false;
   try {
@@ -1735,7 +1767,7 @@ async function loadFromFirestore() {
     if (doc.exists) {
       const data = doc.data();
       if (data.state) {
-        state = JSON.parse(data.state);
+        state = mergeStates(state, JSON.parse(data.state));
         initState();
         save();
         renderCurrentPage();
